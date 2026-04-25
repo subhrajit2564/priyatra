@@ -1,0 +1,79 @@
+# Builds a debug APK and publishes it to GitHub Releases (direct download, no Play Store).
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Create local.properties (no secrets required for debug build)
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Grant execute for Gradle wrapper
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Prepare asset name
+        id: ap
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk priyatra-guide.apk
+          echo "path=priyatra-guide.apk" >> $GITHUB_OUTPUT
+
+      - name: Upload APK (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: priyatra-guide
+          path: priyatra-guide.apk
+          retention-days: 30
+
+      # Versioned release when you push a tag like v1.0.0
+      - name: Publish versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.ap.outputs.path }}
+          generate_release_notes: true
+
+      # Continuous build from main (or "Run workflow" on main): one prerelease, APK file replaced each time
+      - name: Publish / update dev release (prerelease)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          if ! gh release view dev-build 2>/dev/null; then
+            gh release create dev-build "$GITHUB_WORKSPACE/priyatra-guide.apk" \
+              --prerelease \
+              --title "Priyatra (latest from main)" \
+              --notes "Built from commit $GITHUB_SHA. Install: download **priyatra-guide.apk**, enable *Install unknown apps* for the app that opened the file (e.g. browser or Files), then open the APK to install. This is a **debug** build."
+          else
+            gh release upload dev-build "$GITHUB_WORKSPACE/priyatra-guide.apk" --clobber
+          fi
