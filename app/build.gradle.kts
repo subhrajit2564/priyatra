@@ -43,8 +43,8 @@ android {
         applicationId = "com.priyatra.guide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.1.4-poc"
+        versionCode = 7
+        versionName = "1.1.5-poc"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")
@@ -81,6 +81,8 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.15.0")
+    // Ensures fragment ≥1.3 for registerForActivityResult (lint + runtime).
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
