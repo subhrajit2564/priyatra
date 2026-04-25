@@ -14,14 +14,22 @@ android {
     val localProps = Properties()
     val lp = rootProject.file("local.properties")
     if (lp.exists()) localProps.load(lp.inputStream())
-    // Also accepts NEXT_PUBLIC_* (web-style) and publishable key from the Supabase dashboard.
-    val supabaseUrl = (localProps.getProperty("SUPABASE_URL")
-        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_URL")
-        ?: "").replace("\"", "'")
-    val supabaseKey = (localProps.getProperty("SUPABASE_ANON_KEY")
-        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
-        ?: "").replace("\"", "'")
+    // local.properties, then env (GitHub Actions secrets → env in workflow).
+    fun firstNonBlank(vararg s: String?): String =
+        s.firstOrNull { !it.isNullOrBlank() } ?: ""
+    val supabaseUrl = firstNonBlank(
+        localProps.getProperty("SUPABASE_URL"),
+        localProps.getProperty("NEXT_PUBLIC_SUPABASE_URL"),
+        System.getenv("SUPABASE_URL"),
+        System.getenv("NEXT_PUBLIC_SUPABASE_URL"),
+    ).replace("\"", "'")
+    val supabaseKey = firstNonBlank(
+        localProps.getProperty("SUPABASE_ANON_KEY"),
+        localProps.getProperty("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+        localProps.getProperty("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+        System.getenv("SUPABASE_ANON_KEY"),
+        System.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    ).replace("\"", "'")
     val groqKey = localProps.getProperty("GROQ_API_KEY") ?: ""
     val llmBase = localProps.getProperty("LLM_BASE_URL") ?: ""
     val llmModel = localProps.getProperty("LLM_MODEL") ?: ""
@@ -35,8 +43,8 @@ android {
         applicationId = "com.priyatra.guide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1-poc"
+        versionCode = 3
+        versionName = "1.1.1-poc"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")

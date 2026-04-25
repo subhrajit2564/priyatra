@@ -1,5 +1,6 @@
 # Builds a debug APK and attaches it to a GitHub Release when you push a version tag (e.g. v1.1.0).
-# API keys (GROQ, Supabase) are empty in CI; add secrets in the repo if you need them baked in.
+# Set repository secrets: SUPABASE_URL, SUPABASE_ANON_KEY (see app/build.gradle.kts) so
+# the APK can sync the real trip catalog. Optional: GROQ_API_KEY.
 
 name: Build and release APK
 
@@ -28,6 +29,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build debug APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact

@@ -24,7 +24,41 @@ object TripRepository {
     private val _catalogRevision = MutableStateFlow(0L)
     val catalogRevision: StateFlow<Long> = _catalogRevision
 
-    private val _tripState: MutableStateFlow<TripPackage> = MutableStateFlow(createDefaultPocPackage())
+    /** Shown when cloud is configured but trips are not loaded yet (avoids “Darjeeling” flash). */
+    private fun createSyncPendingPackage(): TripPackage {
+        val zone: ZoneId = ZoneId.of("Asia/Kolkata")
+        val day = LocalDate.now(zone)
+        return TripPackage(
+            title = "Loading your trips",
+            zone = zone,
+            destination = "",
+            supportPhone = "",
+            transports = emptyList(),
+            drivers = emptyList(),
+            hotel = HotelBooking(
+                name = "—",
+                address = "Open Desk (admin) and tap “Sync from shared cloud” if trips stay empty.",
+                lat = 27.0410,
+                lng = 88.2633,
+                checkIn = day,
+                checkOut = day,
+                confirmation = "—",
+                phone = "—",
+            ),
+            extraHotels = null,
+            spots = emptyList(),
+            days = listOf(
+                DayPlan(
+                    dayIndex = 1,
+                    title = "Sync",
+                    summary = "Your operator catalog loads from the cloud on first start.",
+                    spotIds = emptyList(),
+                ),
+            ),
+        )
+    }
+
+    private val _tripState: MutableStateFlow<TripPackage> = MutableStateFlow(createSyncPendingPackage())
     val tripState: StateFlow<TripPackage> = _tripState.asStateFlow()
     val trip: TripPackage get() = _tripState.value
 
@@ -42,15 +76,27 @@ object TripRepository {
         LegacyDataImporter.importOnceIfNeeded(app)
         val store = TripCatalogStore(app)
         var file = store.load()
-        if (file.trips.isEmpty()) {
+        // Do not write the Darjeeling seed before cloud when Supabase is enabled — the CI APK
+        // and devices then pull the real catalog (e.g. East Sikkim) on first run.
+        if (file.trips.isEmpty() && !CatalogCloudSync.isConfigured()) {
             file = TripsCatalogFile(trips = listOf(defaultSeedStored()))
             store.save(file)
         }
-        catalogTrips = file.trips
+        catalogTrips = TripCatalogStore(app).load().trips
         refreshFromSession(app)
         (app as? PriyaTraApplication)?.applicationScope?.launch {
             CatalogCloudSync.runStartupSync(app)
         }
+    }
+
+    /**
+     * Offline / no row on server: add the in-app sample trip (Darjeeling) only if still empty.
+     */
+    fun applyDefaultSeedIfEmpty(context: Context) {
+        val app = context.applicationContext
+        if (TripCatalogStore(app).load().trips.isNotEmpty()) return
+        TripCatalogStore(app).save(TripsCatalogFile(trips = listOf(defaultSeedStored())))
+        reloadCatalog(context)
     }
 
     fun reloadCatalog(context: Context) {
@@ -77,6 +123,12 @@ object TripRepository {
         val match = catalogTrips.find { it.id == pickId } ?: catalogTrips.firstOrNull()
         if (match != null) {
             _tripState.value = match.tripPackage
+        } else {
+            _tripState.value = if (CatalogCloudSync.isConfigured()) {
+                createSyncPendingPackage()
+            } else {
+                createDefaultPocPackage()
+            }
         }
     }
 

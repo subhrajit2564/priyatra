@@ -12,7 +12,7 @@ object AdminPhoneConfig {
     const val LEGACY_ADMIN_PHONE = "admin_phone_digits"
 
     /** Default three admin lines (digits only, no +91). */
-    const val DEFAULT_ADMIN_PHONES_CSV = "9432748575,8334809645,7003438191"
+    const val DEFAULT_ADMIN_PHONES_CSV = "9432748575,8334809635,7003438191"
 
     fun loadDigitsList(settings: SettingsDao): List<String> {
         val primary = settings.getValue(KEY_ADMIN_PHONES_CSV)?.trim()

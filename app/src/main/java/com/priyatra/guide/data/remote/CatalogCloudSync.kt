@@ -98,9 +98,27 @@ object CatalogCloudSync {
                 val n = PriyaTraDatabase.getInstance(context).tripDao().count()
                 if (n > 0) {
                     pushToRemote(context)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        if (isConfigured()) {
+                            TripRepository.reloadCatalog(context)
+                        } else {
+                            TripRepository.applyDefaultSeedIfEmpty(context)
+                        }
+                    }
                 }
             }
-            is GetResult.Failure -> { /* keep local / offline */ }
+            is GetResult.Failure -> {
+                withContext(Dispatchers.Main) {
+                    if (PriyaTraDatabase.getInstance(context).tripDao().count() == 0) {
+                        if (isConfigured()) {
+                            TripRepository.reloadCatalog(context)
+                        } else {
+                            TripRepository.applyDefaultSeedIfEmpty(context)
+                        }
+                    }
+                }
+            }
         }
     }
 

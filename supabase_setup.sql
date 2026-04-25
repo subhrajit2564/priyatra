@@ -7,7 +7,7 @@
 create table if not exists public.priyatra_state (
   id int primary key,
   catalog_json text not null,
-  -- Comma-separated normalized digits, e.g. 9432748575,8334809645,7003438191
+  -- Comma-separated normalized digits, e.g. 9432748575,8334809635,7003438191
   admin_phone_digits text,
   updated_at timestamptz not null default now()
 );
