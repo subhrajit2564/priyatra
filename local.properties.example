@@ -1,0 +1,11 @@
+# Copy to local.properties and fill in. local.properties is gitignored.
+
+sdk.dir=/path/to/your/Android/sdk
+
+# Groq (itinerary): https://console.groq.com/keys
+GROQ_API_KEY=
+
+# Optional: custom OpenAI-compatible base URL; leave empty for Groq default
+LLM_BASE_URL=
+LLM_MODEL=
+LLM_MAX_TOKENS=8192
