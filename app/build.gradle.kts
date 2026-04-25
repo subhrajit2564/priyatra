@@ -43,8 +43,8 @@ android {
         applicationId = "com.priyatra.guide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.2-poc"
+        versionCode = 6
+        versionName = "1.1.4-poc"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")
@@ -109,4 +109,6 @@ dependencies {
     ksp("androidx.room:room-compiler:$room")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    testImplementation("junit:junit:4.13.2")
 }

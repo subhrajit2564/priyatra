@@ -18,6 +18,15 @@ class TripCatalogStore(context: Context) {
         trips = db.tripDao().getAllWithPhones().map { TripEntityMappers.toStoredTrip(it) },
     )
 
+    /**
+     * Writes catalog to Room only. Use when the shared Supabase row is the source of truth
+     * (e.g. removing the local Darjeeling demo) — [save] also pushes, which can race with startup
+     * pull and **overwrite the cloud** with an empty or stale catalog.
+     */
+    fun replaceLocal(catalog: TripsCatalogFile) {
+        db.tripDao().replaceCatalog(catalog.trips)
+    }
+
     fun save(catalog: TripsCatalogFile) {
         db.tripDao().replaceCatalog(catalog.trips)
         CatalogCloudSync.requestPushAfterLocalSave(app)

@@ -70,7 +70,13 @@ object CatalogCloudSync {
             TripJson.gson.fromJson(row.catalogJson, TripsCatalogFile::class.java)
                 ?: TripsCatalogFile()
         } catch (e: Exception) {
-            Log.e(TAG, "parse catalog_json", e)
+            Log.e(
+                TAG,
+                "parse catalog_json (len=${row.catalogJson.length} head=${
+                row.catalogJson.take(200).replace("\n", " ")
+                })",
+                e,
+            )
             TripsCatalogFile()
         }
         db.tripDao().replaceCatalog(catalog.trips)

@@ -71,9 +71,23 @@ object TripRepository {
         MealReminder(MealKind.DINNER, "Dinner window", LocalTime.of(21, 0), LocalTime.of(22, 0)),
     )
 
+    /**
+     * Old installs may still have the local demo trip [defaultSeedStored] in Room; once cloud is
+     * enabled we remove it so the UI does not keep showing "Darjeeling Escape" over the real catalog.
+     */
+    private fun stripLocalDemoIfCloudEnabled(context: Context) {
+        if (!CatalogCloudSync.isConfigured()) return
+        val store = TripCatalogStore(context)
+        val c = store.load()
+        if (c.trips.none { it.id == "seed-darjeeling" }) return
+        val next = c.trips.filter { it.id != "seed-darjeeling" }
+        store.replaceLocal(TripsCatalogFile(trips = next))
+    }
+
     fun init(context: Context) {
         val app = context.applicationContext
         LegacyDataImporter.importOnceIfNeeded(app)
+        stripLocalDemoIfCloudEnabled(app)
         val store = TripCatalogStore(app)
         var file = store.load()
         // Do not write the Darjeeling seed before cloud when Supabase is enabled — the CI APK
@@ -91,9 +105,11 @@ object TripRepository {
 
     /**
      * Offline / no row on server: add the in-app sample trip (Darjeeling) only if still empty.
+     * Never when Supabase is on — the operator catalog is the source of truth.
      */
     fun applyDefaultSeedIfEmpty(context: Context) {
         val app = context.applicationContext
+        if (CatalogCloudSync.isConfigured()) return
         if (TripCatalogStore(app).load().trips.isNotEmpty()) return
         TripCatalogStore(app).save(TripsCatalogFile(trips = listOf(defaultSeedStored())))
         reloadCatalog(context)
