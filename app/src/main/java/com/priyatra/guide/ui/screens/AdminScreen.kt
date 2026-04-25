@@ -55,6 +55,7 @@ import com.priyatra.guide.admin.dayFormsFromTrip
 import com.priyatra.guide.admin.hotelRowsFromTrip
 import com.priyatra.guide.admin.joinDestinationList
 import com.priyatra.guide.admin.parseDestinationList
+import com.priyatra.guide.data.remote.CatalogCloudSync
 import com.priyatra.guide.data.HotelBooking
 import com.priyatra.guide.data.StoredTrip
 import com.priyatra.guide.location.LocationReportStore
@@ -192,9 +193,16 @@ private fun AdminTripList(
 ) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "Create trips, add travellers’ numbers, and send nudges. Use AI (Groq, free key) to draft stops after you add driver, hotel, and day notes. Set GROQ_API_KEY in local.properties.",
+            "Create trips, add travellers’ numbers, and send nudges. \"Generate with AI (Groq)\" is optional — trips and shared cloud do not need it — only for drafting stops in the editor when you have a Groq key in local.properties, GROQ_API_KEY env, or the CI secret.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val cloudCfg = if (CatalogCloudSync.isConfigured()) "on" else "off — set SUPABASE_URL + key and rebuild"
+        val aiCfg = if (BuildConfig.GROQ_API_KEY.isNotBlank()) "on" else "off (optional)"
+        Text(
+            "This build: trip cloud $cloudCfg · AI (Groq) $aiCfg",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
         )
         if (busy) {
             Text("Working…", style = MaterialTheme.typography.labelLarge)
@@ -575,7 +583,10 @@ private fun AdminTripEdit(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Generate / refresh with AI (Groq)")
+            Text(
+                if (BuildConfig.GROQ_API_KEY.isNotBlank()) "Generate / refresh with AI (Groq)"
+                else "Generate / refresh with AI (add GROQ key to use)",
+            )
         }
     }
 }

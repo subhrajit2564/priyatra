@@ -30,11 +30,23 @@ android {
         System.getenv("SUPABASE_ANON_KEY"),
         System.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
     ).replace("\"", "'")
-    val groqKey = localProps.getProperty("GROQ_API_KEY") ?: ""
-    val llmBase = localProps.getProperty("LLM_BASE_URL") ?: ""
-    val llmModel = localProps.getProperty("LLM_MODEL") ?: ""
+    val groqKey = firstNonBlank(
+        localProps.getProperty("GROQ_API_KEY"),
+        System.getenv("GROQ_API_KEY"),
+    ).replace("\"", "'")
+    val llmBase = firstNonBlank(
+        localProps.getProperty("LLM_BASE_URL"),
+        System.getenv("LLM_BASE_URL"),
+    ).replace("\"", "'")
+    val llmModel = firstNonBlank(
+        localProps.getProperty("LLM_MODEL"),
+        System.getenv("LLM_MODEL"),
+    ).replace("\"", "'")
     // Cap completion tokens so input + max_tokens fits model / gateway limits (avoids "request too large for model")
-    val llmMaxOutTokens = (localProps.getProperty("LLM_MAX_TOKENS") ?: "8192")
+    val llmMaxOutTokens = (firstNonBlank(
+        localProps.getProperty("LLM_MAX_TOKENS"),
+        System.getenv("LLM_MAX_TOKENS"),
+    ).ifBlank { "8192" })
         .toIntOrNull()
         ?.coerceIn(1024, 8192)
         ?: 8192
@@ -43,8 +55,8 @@ android {
         applicationId = "com.priyatra.guide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.1.5-poc"
+        versionCode = 9
+        versionName = "1.1.7-poc"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")

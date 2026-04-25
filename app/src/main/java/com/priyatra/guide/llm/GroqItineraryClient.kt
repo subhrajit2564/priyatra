@@ -53,7 +53,7 @@ class GroqItineraryClient(
         if (key.isEmpty()) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    "Set GROQ_API_KEY in local.properties. Free key: https://console.groq.com/keys",
+                    "GROQ_API_KEY is not set in this build (local.properties or GROQ_API_KEY env). Optional for AI only.",
                 ),
             )
         }

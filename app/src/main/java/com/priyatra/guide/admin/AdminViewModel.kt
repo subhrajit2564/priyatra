@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.util.UUID
+import com.priyatra.guide.BuildConfig
 import com.priyatra.guide.data.TripPackage
 import com.priyatra.guide.data.DriverAssignment
 import java.time.LocalDate
@@ -126,6 +127,13 @@ class AdminViewModel(
     ) {
         if (dayInputs.isEmpty()) {
             _error.value = "Add at least one day before generating."
+            return
+        }
+        if (BuildConfig.GROQ_API_KEY.isBlank()) {
+            _llmInfo.value = "AI draft (Groq) is optional. This build has no GROQ_API_KEY — " +
+                "add it to local.properties, or for CI/Actions set the GROQ_API_KEY env / repository secret and rebuild. " +
+                "Trips, save, and cloud sync do not use Groq.\n\n" +
+                "Get a key: https://console.groq.com/keys"
             return
         }
         val duration = durationDaysOverride ?: trip.durationDays
