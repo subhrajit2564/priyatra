@@ -2,8 +2,8 @@ package com.priyatra.guide.auth
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.priyatra.guide.data.TripCatalogStore
 import com.priyatra.guide.data.TripRepository
+import com.priyatra.guide.data.db.PriyaTraDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,8 +23,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginError = MutableStateFlow<String?>(null)
     val loginError: StateFlow<String?> = _loginError.asStateFlow()
 
-    /** Digits of the admin test line (no country code) — can be replaced with a real admin account list. */
-    val registeredAdmin = "9432748575"
+    /** Comma-separated admin digits (for display/debug). */
+    val registeredAdminLines: String
+        get() = AdminPhoneConfig.loadDigitsList(PriyaTraDatabase.getInstance(getApplication()).settingsDao())
+            .joinToString(", ")
 
     fun clearLoginError() {
         _loginError.value = null
@@ -36,7 +38,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _loginError.value = "Enter a valid phone number."
             return
         }
-        if (PhoneUtils.sameNumber(phone, registeredAdmin)) {
+        val settings = PriyaTraDatabase.getInstance(getApplication()).settingsDao()
+        if (AdminPhoneConfig.isAdminLine(phone, settings)) {
             _loginError.value = null
             sessionManager.login(phone, isAdmin = true)
             _isAdmin.value = true
@@ -46,16 +49,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             TripRepository.refreshFromSession(getApplication())
             return
         }
-        val catalog = TripCatalogStore(getApplication()).load().trips
-        val trip = catalog.firstOrNull { t ->
-            t.customerPhones.any { stored -> PhoneUtils.sameNumber(phone, stored) }
-        }
-        if (trip == null) {
+        val match = PriyaTraDatabase.getInstance(getApplication())
+            .customerPhoneDao()
+            .findFirstByNormalizedDigits(PhoneUtils.normalize(phone))
+        if (match == null) {
             _loginError.value = "This number is not registered on any active trip. Contact PriyaTra."
             return
         }
         _loginError.value = null
-        sessionManager.login(phone, isAdmin = false, customerTripId = trip.id)
+        sessionManager.login(phone, isAdmin = false, customerTripId = match.tripId)
         _isAdmin.value = false
         _isLoggedIn.value = true
         _previewingAsUser.value = false

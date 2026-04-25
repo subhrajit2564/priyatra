@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -13,6 +14,14 @@ android {
     val localProps = Properties()
     val lp = rootProject.file("local.properties")
     if (lp.exists()) localProps.load(lp.inputStream())
+    // Also accepts NEXT_PUBLIC_* (web-style) and publishable key from the Supabase dashboard.
+    val supabaseUrl = (localProps.getProperty("SUPABASE_URL")
+        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_URL")
+        ?: "").replace("\"", "'")
+    val supabaseKey = (localProps.getProperty("SUPABASE_ANON_KEY")
+        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        ?: localProps.getProperty("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+        ?: "").replace("\"", "'")
     val groqKey = localProps.getProperty("GROQ_API_KEY") ?: ""
     val llmBase = localProps.getProperty("LLM_BASE_URL") ?: ""
     val llmModel = localProps.getProperty("LLM_MODEL") ?: ""
@@ -26,9 +35,11 @@ android {
         applicationId = "com.priyatra.guide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0-poc"
+        versionCode = 2
+        versionName = "1.1-poc"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")
         buildConfigField("String", "LLM_BASE_URL", "\"$llmBase\"")
         buildConfigField("String", "LLM_MODEL", "\"$llmModel\"")
         buildConfigField("int", "LLM_MAX_TOKENS", llmMaxOutTokens.toString())
@@ -83,4 +94,11 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.11.0")
+
+    val room = "2.6.1"
+    implementation("androidx.room:room-runtime:$room")
+    implementation("androidx.room:room-ktx:$room")
+    ksp("androidx.room:room-compiler:$room")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

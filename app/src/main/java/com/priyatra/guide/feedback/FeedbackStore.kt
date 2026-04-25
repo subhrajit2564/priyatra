@@ -1,21 +1,23 @@
 package com.priyatra.guide.feedback
 
 import android.content.Context
+import com.priyatra.guide.data.db.PriyaTraDatabase
+import com.priyatra.guide.data.db.SpotFeedbackEntity
 
 class FeedbackStore(context: Context) {
-    private val prefs = context.getSharedPreferences("priyatra_feedback", Context.MODE_PRIVATE)
+    private val dao = PriyaTraDatabase.getInstance(context.applicationContext).feedbackDao()
 
-    fun hasFeedback(spotId: String): Boolean = prefs.contains(keyStars(spotId))
+    fun hasFeedback(spotId: String): Boolean = dao.get(spotId) != null
 
     fun save(spotId: String, stars: Int, note: String) {
-        prefs.edit()
-            .putInt(keyStars(spotId), stars.coerceIn(1, 5))
-            .putString(keyNote(spotId), note)
-            .apply()
+        dao.upsert(
+            SpotFeedbackEntity(
+                spotId = spotId,
+                stars = stars.coerceIn(1, 5),
+                note = note,
+            ),
+        )
     }
 
-    fun stars(spotId: String): Int = prefs.getInt(keyStars(spotId), 0)
-
-    private fun keyStars(id: String) = "${id}_stars"
-    private fun keyNote(id: String) = "${id}_note"
+    fun stars(spotId: String): Int = dao.get(spotId)?.stars ?: 0
 }

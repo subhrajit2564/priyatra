@@ -47,6 +47,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.priyatra.guide.admin.AdminFormMerge
+import com.priyatra.guide.BuildConfig
 import com.priyatra.guide.admin.AdminViewModel
 import com.priyatra.guide.admin.DayFormData
 import com.priyatra.guide.admin.HotelFormRow
@@ -160,7 +161,7 @@ fun AdminScreen(
                     busy = busy,
                     onOpen = { id -> nav.navigate("admin_edit/$id") },
                     onDelete = { id -> vm.deleteTrip(id) },
-                    onRefresh = { vm.refreshList() },
+                    onRefresh = { vm.refreshFromServer() },
                     onLogout = onLogout,
                     onPreview = { previewOpen = true },
                 )
@@ -222,7 +223,11 @@ private fun AdminTripList(
             OutlinedButton(onClick = onPreview, modifier = Modifier.fillMaxWidth()) {
                 Text("Preview user app (pick a trip)")
             }
-            OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text("Reload catalog") }
+            OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (BuildConfig.SUPABASE_URL.isNotEmpty()) "Sync from shared cloud" else "Reload catalog",
+                )
+            }
             Button(
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),

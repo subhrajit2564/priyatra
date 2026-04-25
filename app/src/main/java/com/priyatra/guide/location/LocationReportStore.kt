@@ -1,13 +1,13 @@
 package com.priyatra.guide.location
 
 import android.content.Context
-import com.google.gson.reflect.TypeToken
-import com.priyatra.guide.data.TripJson
+import com.priyatra.guide.auth.PhoneUtils
+import com.priyatra.guide.data.db.LocationSnapshotEntity
+import com.priyatra.guide.data.db.PriyaTraDatabase
 
 /**
- * When customers share location during a trip, we persist last known coordinates so the
- * admin map (same app, admin session) can read them. This is on-device only (POC);
- * production would use a server.
+ * When customers share location during a trip, we persist last known coordinates in Room
+ * so the admin map (same app, admin session) can read them.
  */
 data class CustomerLocationSnapshot(
     val lat: Double,
@@ -17,25 +17,32 @@ data class CustomerLocationSnapshot(
 )
 
 class LocationReportStore(context: Context) {
-    private val prefs = context.getSharedPreferences("priyatra_locs", Context.MODE_PRIVATE)
-    private val mapType = object : TypeToken<Map<String, CustomerLocationSnapshot>>() {}.type
-
-    private fun key(tripId: String) = "trip_locs_$tripId"
+    private val app = context.applicationContext
+    private val locationDao get() = PriyaTraDatabase.getInstance(app).locationDao()
 
     fun put(tripId: String, phone: String, lat: Double, lng: Double) {
-        val all = getAll(tripId).toMutableMap()
-        all[phone] = CustomerLocationSnapshot(lat, lng, System.currentTimeMillis(), phone)
-        prefs.edit().putString(key(tripId), TripJson.gson.toJson(all, mapType)).apply()
+        val digits = PhoneUtils.normalize(phone)
+        if (digits.isEmpty()) return
+        locationDao.upsert(
+            LocationSnapshotEntity(
+                tripId = tripId,
+                phoneDigits = digits,
+                lat = lat,
+                lng = lng,
+                updatedAtMillis = System.currentTimeMillis(),
+            ),
+        )
     }
 
-    fun getAll(tripId: String): Map<String, CustomerLocationSnapshot> {
-        val raw = prefs.getString(key(tripId), null) ?: return emptyMap()
-        return runCatching {
-            TripJson.gson.fromJson<Map<String, CustomerLocationSnapshot>>(raw, mapType)
-        }.getOrNull().orEmpty()
-    }
+    fun getAll(tripId: String): Map<String, CustomerLocationSnapshot> =
+        locationDao.forTrip(tripId).associate { e ->
+            e.phoneDigits to CustomerLocationSnapshot(
+                lat = e.lat,
+                lng = e.lng,
+                updatedAtMillis = e.updatedAtMillis,
+                phone = e.phoneDigits,
+            )
+        }
 
-    fun clear(tripId: String) {
-        prefs.edit().remove(key(tripId)).apply()
-    }
+    fun clear(tripId: String) = locationDao.clearForTrip(tripId)
 }

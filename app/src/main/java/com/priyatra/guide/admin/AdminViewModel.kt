@@ -7,6 +7,7 @@ import com.priyatra.guide.data.StoredTrip
 import com.priyatra.guide.data.TripCatalogStore
 import com.priyatra.guide.data.TripRepository
 import com.priyatra.guide.data.TripsCatalogFile
+import com.priyatra.guide.data.remote.CatalogCloudSync
 import com.priyatra.guide.data.HotelBooking
 import com.priyatra.guide.auth.PhoneUtils
 import com.priyatra.guide.llm.DayAdminInput
@@ -14,6 +15,7 @@ import com.priyatra.guide.llm.GroqItineraryClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.util.UUID
@@ -44,6 +46,13 @@ class AdminViewModel(
 
     init {
         refreshList()
+        viewModelScope.launch {
+            TripRepository.catalogRevision.collectLatest { rev ->
+                if (rev > 0L) {
+                    refreshList()
+                }
+            }
+        }
     }
 
     fun clearError() {
@@ -58,12 +67,32 @@ class AdminViewModel(
         _catalog.value = TripCatalogStore(app).load().trips
     }
 
+    /** When Supabase is configured, pulls the shared row into Room, then updates the list. */
+    fun refreshFromServer() {
+        if (!CatalogCloudSync.isConfigured()) {
+            refreshList()
+            return
+        }
+        viewModelScope.launch {
+            _busy.value = true
+            try {
+                val ok = CatalogCloudSync.forcePullAndApply(app)
+                if (!ok) {
+                    _error.value = "No row on the server yet, or the device is offline. Save a trip on another device, or add data here to upload."
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Cloud sync failed"
+            } finally {
+                _busy.value = false
+            }
+        }
+    }
+
     fun upsertTrip(trip: StoredTrip) {
         val store = TripCatalogStore(app)
         val c = store.load()
         val list = c.trips.filter { it.id != trip.id } + trip
         store.save(TripsCatalogFile(trips = list))
-        refreshList()
         TripRepository.reloadCatalog(app)
     }
 
@@ -72,7 +101,6 @@ class AdminViewModel(
         val c = store.load()
         val list = c.trips.filter { it.id != id }
         store.save(TripsCatalogFile(trips = list))
-        refreshList()
         TripRepository.reloadCatalog(app)
     }
 

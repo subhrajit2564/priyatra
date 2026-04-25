@@ -2,6 +2,11 @@ package com.priyatra.guide.data
 
 import android.content.Context
 import com.priyatra.guide.auth.SessionManager
+import com.priyatra.guide.notifications.TripNotificationScheduler
+import com.priyatra.guide.PriyaTraApplication
+import com.priyatra.guide.data.db.LegacyDataImporter
+import com.priyatra.guide.data.remote.CatalogCloudSync
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -14,6 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object TripRepository {
     private var catalogTrips: List<StoredTrip> = emptyList()
+
+    /** Bumps each time the trip catalog in memory (and Room) is reloaded. */
+    private val _catalogRevision = MutableStateFlow(0L)
+    val catalogRevision: StateFlow<Long> = _catalogRevision
 
     private val _tripState: MutableStateFlow<TripPackage> = MutableStateFlow(createDefaultPocPackage())
     val tripState: StateFlow<TripPackage> = _tripState.asStateFlow()
@@ -29,19 +38,27 @@ object TripRepository {
     )
 
     fun init(context: Context) {
-        val store = TripCatalogStore(context.applicationContext)
+        val app = context.applicationContext
+        LegacyDataImporter.importOnceIfNeeded(app)
+        val store = TripCatalogStore(app)
         var file = store.load()
         if (file.trips.isEmpty()) {
             file = TripsCatalogFile(trips = listOf(defaultSeedStored()))
             store.save(file)
         }
         catalogTrips = file.trips
-        refreshFromSession(context.applicationContext)
+        refreshFromSession(app)
+        (app as? PriyaTraApplication)?.applicationScope?.launch {
+            CatalogCloudSync.runStartupSync(app)
+        }
     }
 
     fun reloadCatalog(context: Context) {
-        catalogTrips = TripCatalogStore(context.applicationContext).load().trips
-        refreshFromSession(context.applicationContext)
+        val app = context.applicationContext
+        catalogTrips = TripCatalogStore(app).load().trips
+        refreshFromSession(app)
+        TripNotificationScheduler.scheduleTripNotifications(context)
+        _catalogRevision.value = _catalogRevision.value + 1L
     }
 
     fun listStoredTrips(context: Context): List<StoredTrip> {
